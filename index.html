@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybersecurity Dashboard Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,sans-serif;background:#1e2a3a;color:#fff;min-height:100vh;}
+
+  /* ── App Shell ── */
+  #app{display:flex;height:100vh;overflow:hidden;}
+  #sidebar{width:380px;min-width:380px;background:#0f1923;overflow-y:auto;padding:16px;transition:width .3s,min-width .3s;}
+  #sidebar.collapsed{width:0;min-width:0;padding:0;overflow:hidden;}
+  #main{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+
+  /* ── Controls Bar ── */
+  #controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .ctrl-btn{padding:9px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;letter-spacing:.3px;transition:opacity .2s;}
+  .ctrl-btn:hover{opacity:.85;}
+  #toggleBtn{background:#2a4a6b;}
+  #pngBtn{background:#27ae60;}
+  #pptxBtn{background:#8e44ad;}
+  #updateBtn{background:#e67e22;}
+
+  /* ── Form Styles ── */
+  .form-section{margin-bottom:14px;border:1px solid #2a3f55;border-radius:8px;overflow:hidden;}
+  .form-section-header{background:#1a3a5c;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;user-select:none;display:flex;justify-content:space-between;}
+  .form-section-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
+  label{font-size:11px;color:#aac;display:block;margin-bottom:2px;}
+  input[type=text],input[type=number],textarea,select{width:100%;background:#1a2a3a;border:1px solid #2a4a6b;border-radius:4px;padding:5px 8px;color:#fff;font-size:12px;}
+  textarea{resize:vertical;min-height:50px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+  .matrix-grid{display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr;gap:3px;font-size:10px;}
+  .matrix-grid span{padding:3px 4px;text-align:center;}
+  .matrix-grid input{width:100%;padding:3px;text-align:center;font-size:11px;}
+  .matrix-header{font-weight:700;color:#7af;}
+  .dir-select{display:flex;gap:4px;}
+  .dir-select button{flex:1;padding:3px;border:1px solid #2a4a6b;border-radius:3px;background:#1a2a3a;color:#aaa;cursor:pointer;font-size:11px;}
+  .dir-select button.active{background:#1a3a5c;color:#fff;border-color:#4a8abf;}
+  .month-block{border:1px solid #2a3f55;border-radius:6px;padding:8px;margin-bottom:6px;}
+  .month-block h5{font-size:11px;color:#7af;margin-bottom:6px;}
+
+  /* ── Dashboard Preview ── */
+  #dashboard-wrap{background:#f0f2f5;border-radius:8px;padding:8px;overflow:auto;}
+  #dashboard{width:1100px;background:#fff;font-family:Arial,sans-serif;color:#1a1a1a;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+
+  /* Dashboard Header */
+  .db-header{background:#1a3a5c;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
+  .db-header h1{font-size:24px;font-weight:700;letter-spacing:.5px;}
+  .db-logo{background:#fff;color:#1a3a5c;padding:6px 14px;border-radius:4px;font-size:14px;font-weight:900;letter-spacing:1px;}
+  .db-logo span{display:block;font-size:8px;font-weight:400;text-align:center;color:#555;margin-top:1px;}
+
+  /* Dashboard Grid Row 1 */
+  .db-row1{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;border-bottom:2px solid #ddd;}
+  .db-row1 > div{padding:12px 14px;border-right:1px solid #ddd;}
+  .db-row1 > div:last-child{border-right:none;}
+
+  /* Section Titles */
+  .db-section-title{font-size:11px;font-weight:700;color:#1a3a5c;border-bottom:1px solid #cce;padding-bottom:4px;margin-bottom:8px;}
+
+  /* Gauge */
+  #gaugeCanvas{display:block;margin:0 auto;}
+  .gauge-label{text-align:center;font-size:10px;color:#555;margin-top:4px;}
+  .risk-desc{font-size:9.5px;color:#444;margin-top:8px;line-height:1.5;}
+
+  /* Vulnerability Matrix */
+  .vuln-matrix table{width:100%;border-collapse:collapse;font-size:9.5px;}
+  .vuln-matrix th{background:#1a3a5c;color:#fff;padding:4px 6px;text-align:center;font-size:9px;}
+  .vuln-matrix td{padding:4px 6px;text-align:center;font-weight:700;font-size:10px;border:1px solid #ddd;}
+  .vuln-matrix .row-label{text-align:left;font-size:9px;color:#333;font-weight:400;background:#f5f5f5;}
+  .cell-red{background:#ff4444;color:#fff;}
+  .cell-orange{background:#ff8800;color:#fff;}
+  .cell-yellow{background:#ffcc00;color:#333;}
+  .cell-green{background:#c8f0c8;color:#333;}
+  .vuln-desc{font-size:9px;color:#444;margin-top:8px;line-height:1.5;}
+
+  /* Helpdesk */
+  .helpdesk-kpis{display:flex;justify-content:space-around;align-items:center;margin-bottom:8px;}
+  .hd-kpi{text-align:center;}
+  .hd-kpi .big-num{font-size:32px;font-weight:900;}
+  .hd-kpi .big-num.green{color:#27ae60;}
+  .hd-kpi .kpi-label{font-size:9px;color:#444;max-width:80px;line-height:1.3;}
+  .arrow-icon{font-size:36px;font-weight:900;}
+  .arrow-icon.green-down{color:#27ae60;}
+  .arrow-icon.green-up{color:#27ae60;}
+  .arrow-icon.red-up{color:#e74c3c;}
+  .arrow-icon.red-down{color:#e74c3c;}
+  .arrow-icon.amber-up{color:#f39c12;}
+  .hd-footnotes{font-size:8.5px;color:#444;line-height:1.6;border-top:1px solid #eee;padding-top:6px;}
+  .hd-divider{width:1px;background:#ddd;height:60px;align-self:center;}
+
+  /* SoC Row */
+  .db-row2{border-bottom:2px solid #ddd;padding:12px 14px;}
+  .soc-kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:10px;}
+  .soc-kpi{display:flex;align-items:center;gap:10px;}
+  .soc-num .big{font-size:28px;font-weight:900;color:#1a3a5c;}
+  .soc-num .delta{font-size:9px;color:#27ae60;margin-top:2px;}
+  .soc-num .label{font-size:10px;color:#555;}
+  .soc-ring{width:60px;height:60px;}
+  .soc-desc{font-size:9.5px;color:#444;line-height:1.6;}
+
+  /* Row 3 */
+  .db-row3{display:grid;grid-template-columns:1fr 1.6fr;}
+  .db-row3 > div{padding:12px 14px;border-right:1px solid #ddd;}
+  .db-row3 > div:last-child{border-right:none;}
+
+  /* Email Threats */
+  .email-threats{background:#111;color:#fff;border-radius:4px;padding:10px 12px;height:100%;min-height:180px;}
+  .email-threats .et-title{font-size:10px;color:#aaa;text-align:center;margin-bottom:4px;}
+  .email-threats .et-total{font-size:32px;font-weight:900;color:#ff3333;text-align:center;margin-bottom:8px;}
+  .et-row{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #222;padding:3px 0;font-size:10px;}
+  .et-row .et-name{color:#ccc;}
+  .et-row .et-val{font-weight:700;}
+  .et-row .et-arr{font-size:14px;margin-left:4px;}
+  .et-row .et-val.red{color:#ff4444;}
+  .et-row .et-val.green{color:#44ff88;}
+  .et-row .et-val.gray{color:#aaa;}
+  .et-arr.red{color:#ff4444;}
+  .et-arr.green{color:#44ff88;}
+  .et-arr.gray{color:#aaa;}
+  .email-summary{font-size:9px;color:#444;margin-top:8px;line-height:1.5;}
+
+  /* Phishing */
+  .phishing-wrap{display:flex;flex-direction:column;gap:8px;}
+  .phishing-top{display:flex;gap:10px;align-items:flex-start;}
+  .phishing-chart-wrap{flex:1;position:relative;height:180px;}
+  .phishing-big{text-align:center;min-width:90px;}
+  .phishing-big .p-pct{font-size:36px;font-weight:900;color:#d4a017;}
+  .phishing-big .p-label{font-size:9px;color:#444;line-height:1.4;max-width:90px;}
+  .phishing-summary{font-size:9px;color:#444;line-height:1.6;}
+  #phishingChart{max-height:180px;}
+
+  /* Loading overlay */
+  #loadingOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;font-size:18px;font-weight:700;}
+  #loadingOverlay.show{display:flex;}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">Generating export... please wait</div>
+
+<div id="app">
+  <!-- ═══════════════════ SIDEBAR FORM ═══════════════════ -->
+  <div id="sidebar">
+    <div style="font-size:14px;font-weight:700;color:#7af;margin-bottom:14px;text-align:center;">Dashboard Data Entry</div>
+
+    <!-- Company -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Company & Report <span>▾</span></div>
+      <div class="form-section-body">
+        <div><label>Company Name</label><input type="text" id="f_companyName" value="Technology Dashboard Summary"></div>
+        <div><label>Logo Text / Abbreviation</label><input type="text" id="f_logoText" value="UBL"></div>
+        <div><label>Logo Sub-text</label><input type="text" id="f_logoSub" value="where YOU come first"></div>
+        <div><label>Report Period</label><input type="text" id="f_period" value="Q1 2026"></div>
+      </div>
+    </div>
+
+    <!-- Risk Score -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Company Risk Score <span>▾</span></div>
+      <div class="form-section-body">
+        <div><label>Risk Score % (0-100)</label><input type="number" id="f_riskScore" value="26" min="0" max="100"></div>
+        <div><label>Risk Description</label><textarea id="f_riskDesc">The Company Risk Score reflects the Bank's overall cybersecurity risk exposure, considering system misconfigurations, vulnerabilities, user behaviour, phishing susceptibility, and external threats. The score increased by 7% compared to the previous quarter, primarily due to the inclusion of phishing and external threat actor risks within the assessment methodology.</textarea></div>
+      </div>
+    </div>
+
+    <!-- Vulnerability Matrix -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Vulnerability Age Matrix <span>▾</span></div>
+      <div class="form-section-body">
+        <div style="font-size:10px;color:#7af;margin-bottom:6px;">Rows: age ranges | Cols: Critical, Important, Medium, Low</div>
+        <div class="matrix-grid">
+          <span class="matrix-header"></span>
+          <span class="matrix-header">Crit</span>
+          <span class="matrix-header">Imp</span>
+          <span class="matrix-header">Med</span>
+          <span class="matrix-header">Low</span>
+          <span style="font-size:10px;color:#aac;">&gt;120d</span>
+          <input type="number" class="vuln-cell" id="v0_0" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v0_1" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v0_2" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v0_3" value="0" min="0">
+          <span style="font-size:10px;color:#aac;">91-120d</span>
+          <input type="number" class="vuln-cell" id="v1_0" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v1_1" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v1_2" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v1_3" value="0" min="0">
+          <span style="font-size:10px;color:#aac;">60-90d</span>
+          <input type="number" class="vuln-cell" id="v2_0" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v2_1" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v2_2" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v2_3" value="0" min="0">
+          <span style="font-size:10px;color:#aac;">30-60d</span>
+          <input type="number" class="vuln-cell" id="v3_0" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v3_1" value="4" min="0">
+          <input type="number" class="vuln-cell" id="v3_2" value="1" min="0">
+          <input type="number" class="vuln-cell" id="v3_3" value="0" min="0">
+          <span style="font-size:10px;color:#aac;">&lt;30d</span>
+          <input type="number" class="vuln-cell" id="v4_0" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v4_1" value="2" min="0">
+          <input type="number" class="vuln-cell" id="v4_2" value="0" min="0">
+          <input type="number" class="vuln-cell" id="v4_3" value="0" min="0">
+        </div>
+        <div><label>Vulnerability Description</label><textarea id="f_vulnDesc">The critical vulnerabilities were identified through a credentialed scan, where the scanning tool uses authorised system credentials to perform a deeper internal security assessment. These vulnerabilities can take slightly longer to remediate as they often require configuration changes or patch updates, and they have since been tested and remediated accordingly.</textarea></div>
+      </div>
+    </div>
+
+    <!-- Helpdesk -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Helpdesk Performance <span>▾</span></div>
+      <div class="form-section-body">
+        <div><label>Period Label (e.g. Q1 2025 vs Q4 2024)</label><input type="text" id="f_hdPeriod" value="Helpdesk Performance Q1 2025 vs Q4 2024"></div>
+        <div class="row3">
+          <div><label>SLA %</label><input type="number" id="f_sla" value="97"></div>
+          <div><label>SLA Direction</label>
+            <div class="dir-select" id="ds_sla">
+              <button onclick="setDir('sla','down')" class="active">▼</button>
+              <button onclick="setDir('sla','up')">▲</button>
+              <button onclick="setDir('sla','neutral')">➡</button>
+            </div>
+          </div>
+          <div><label>SLA Color</label>
+            <select id="f_slaColor">
+              <option value="green" selected>Green</option>
+              <option value="red">Red</option>
+              <option value="amber">Amber</option>
+            </select>
+          </div>
+        </div>
+        <div><label>SLA Label</label><input type="text" id="f_slaLabel" value="SLA achieved by the Department in Q1 2026*"></div>
+        <div class="row3">
+          <div><label>Incidents %</label><input type="number" id="f_inc" value="6"></div>
+          <div><label>Inc Direction</label>
+            <div class="dir-select" id="ds_inc">
+              <button onclick="setDir('inc','down')" class="active">▼</button>
+              <button onclick="setDir('inc','up')">▲</button>
+              <button onclick="setDir('inc','neutral')">➡</button>
+            </div>
+          </div>
+          <div><label>Inc Color</label>
+            <select id="f_incColor">
+              <option value="green" selected>Green</option>
+              <option value="red">Red</option>
+              <option value="amber">Amber</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Incidents Label</label><input type="text" id="f_incLabel" value="Incidents/ Service Requests vs Q2 2025**"></div>
+        <div class="row3">
+          <div><label>Critical %</label><input type="number" id="f_crit" value="1"></div>
+          <div><label>Crit Direction</label>
+            <div class="dir-select" id="ds_crit">
+              <button onclick="setDir('crit','down')">▼</button>
+              <button onclick="setDir('crit','up')" class="active">▲</button>
+              <button onclick="setDir('crit','neutral')">➡</button>
+            </div>
+          </div>
+          <div><label>Crit Color</label>
+            <select id="f_critColor">
+              <option value="green">Green</option>
+              <option value="red" selected>Red</option>
+              <option value="amber">Amber</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Critical Label</label><input type="text" id="f_critLabel" value="Critical Incidents vs Q1 2025***"></div>
+        <div><label>Footnote 1 (*)</label><input type="text" id="f_fn1" value="SLA Benchmark 92%, we achieved 96% in Q3 2025 this is 1% decrease from last quarter"></div>
+        <div><label>Footnote 2 (**)</label><input type="text" id="f_fn2" value="6% more incidents then service request have been raised compared to Q4 2025, this a decrease of 2%"></div>
+        <div><label>Footnote 3 (***)</label><input type="text" id="f_fn3" value="We reported a single incident in regards to swift payments last quarter"></div>
+      </div>
+    </div>
+
+    <!-- SoC -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">SoC Activity Report <span>▾</span></div>
+      <div class="form-section-body">
+        <div class="row2">
+          <div><label>All Events</label><input type="text" id="f_evAll" value="168M"></div>
+          <div><label>All Events Delta</label><input type="text" id="f_evAllD" value="▲ 168093584 (115132591.78%)"></div>
+        </div>
+        <div class="row2">
+          <div><label>Allowed Connections</label><input type="text" id="f_evAllow" value="119M"></div>
+          <div><label>Allowed Delta</label><input type="text" id="f_evAllowD" value="▲ 119875330"></div>
+        </div>
+        <div class="row2">
+          <div><label>Denied Connections</label><input type="text" id="f_evDeny" value="19035K"></div>
+          <div><label>Denied Delta</label><input type="text" id="f_evDenyD" value="▲ 19035665"></div>
+        </div>
+        <div><label>SoC Description</label><textarea id="f_socDesc">Over the last quarter, we ingested 168 million events, an increase from 151 million in the previous quarter. All events were logged and analyzed. Of these, 119 million were allowed, while 190,000 were blocked.</textarea></div>
+      </div>
+    </div>
+
+    <!-- Email Threats -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Blocked Email Threats <span>▾</span></div>
+      <div class="form-section-body">
+        <div><label>Total Threats</label><input type="text" id="f_etTotal" value="151010"></div>
+        <div style="font-size:10px;color:#7af;margin:4px 0;">Each metric: value + direction</div>
+        <div id="etMetrics"></div>
+        <div><label>Email Threats Summary</label><textarea id="f_etDesc">Overall, compared to the previous reporting period, we have seen an increase in inbound messages being rejected or blocked by our email security filter. Additionally, impersonation attacks have decreased, while more spam and malware-related emails have been detected and blocked.</textarea></div>
+      </div>
+    </div>
+
+    <!-- Phishing -->
+    <div class="form-section">
+      <div class="form-section-header" onclick="toggleSection(this)">Phishing Simulation <span>▾</span></div>
+      <div class="form-section-body">
+        <div class="row2">
+          <div><label>Phish-Prone %</label><input type="number" id="f_phishPct" value="7"></div>
+          <div><label>Industry Avg %</label><input type="number" id="f_indAvg" value="2.5"></div>
+        </div>
+        <div style="font-size:10px;color:#7af;margin:6px 0 4px;">Monthly Data (3 months)</div>
+        <div id="phishMonths"></div>
+        <div><label>Phishing Summary</label><textarea id="f_phishDesc">As of the end of January, 93% of staff successfully passed the simulated phishing email tests. While there has been a slight decrease in failures since the last reporting date, the overall quarterly failure rate has improved, decreasing from 8% in the previous quarter to 7% in the current quarter. However, this remains above the industry average of 2.5%.</textarea></div>
+      </div>
+    </div>
+
+    <button class="ctrl-btn" style="background:#27ae60;width:100%;margin-top:8px;" onclick="updateDashboard()">▶ Update Dashboard</button>
+  </div>
+
+  <!-- ═══════════════════ MAIN AREA ═══════════════════ -->
+  <div id="main">
+    <div id="controls">
+      <button class="ctrl-btn" id="toggleBtn" onclick="toggleSidebar()">☰ Toggle Form</button>
+      <button class="ctrl-btn" id="updateBtn" onclick="updateDashboard()">↺ Refresh Dashboard</button>
+      <button class="ctrl-btn" id="pngBtn" onclick="exportPNG()">⬇ Download PNG</button>
+      <button class="ctrl-btn" id="pptxBtn" onclick="exportPPTX()">📊 Export PowerPoint</button>
+    </div>
+
+    <div id="dashboard-wrap">
+      <!-- ══════════════ DASHBOARD ══════════════ -->
+      <div id="dashboard">
+
+        <!-- Header -->
+        <div class="db-header">
+          <h1 id="db_title">Technology Dashboard Summary</h1>
+          <div class="db-logo">
+            <div id="db_logoText">UBL</div>
+            <span id="db_logoSub">where YOU come first</span>
+          </div>
+        </div>
+
+        <!-- Row 1 -->
+        <div class="db-row1">
+          <!-- Risk Score -->
+          <div>
+            <div class="db-section-title">Company Risk Score</div>
+            <canvas id="gaugeCanvas" width="220" height="130"></canvas>
+            <div class="gauge-label" id="db_gaugeLabel">Risk Level: <strong>Medium</strong></div>
+            <p class="risk-desc" id="db_riskDesc"></p>
+          </div>
+
+          <!-- Vulnerabilities -->
+          <div>
+            <div class="db-section-title">Vulnerabilities</div>
+            <div class="vuln-matrix">
+              <table id="vulnTable">
+                <thead>
+                  <tr>
+                    <th style="text-align:left;background:#2a5a8c;">Vulnerability Age Matrix</th>
+                    <th>Critical</th><th>Important</th><th>Medium</th><th>Low</th>
+                  </tr>
+                </thead>
+                <tbody id="vulnBody"></tbody>
+              </table>
+            </div>
+            <p class="vuln-desc" id="db_vulnDesc"></p>
+          </div>
+
+          <!-- Helpdesk -->
+          <div>
+            <div class="db-section-title" id="db_hdPeriod">Helpdesk Performance Q1 2025 vs Q4 2024</div>
+            <div class="helpdesk-kpis">
+              <div class="hd-kpi">
+                <div class="big-num" id="db_slaNum" style="color:#27ae60;">97%</div>
+                <div class="kpi-label" id="db_slaLabel"></div>
+              </div>
+              <div class="hd-divider"></div>
+              <div style="text-align:center;">
+                <div class="arrow-icon" id="db_incArr">▼</div>
+                <div style="font-size:16px;font-weight:700;" id="db_incNum">6%</div>
+                <div class="kpi-label" id="db_incLabel"></div>
+              </div>
+              <div class="hd-divider"></div>
+              <div style="text-align:center;">
+                <div class="arrow-icon" id="db_critArr">▲</div>
+                <div style="font-size:16px;font-weight:700;" id="db_critNum">1%</div>
+                <div class="kpi-label" id="db_critLabel"></div>
+              </div>
+            </div>
+            <div class="hd-footnotes">
+              <div id="db_fn1"></div>
+              <div id="db_fn2"></div>
+              <div id="db_fn3"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: SoC -->
+        <div class="db-row2">
+          <div class="db-section-title">SoC Activity Report</div>
+          <div class="soc-kpis">
+            <div class="soc-kpi">
+              <div class="soc-num">
+                <div class="label">All Events</div>
+                <div class="big" id="db_evAll">168M</div>
+                <div class="delta" id="db_evAllD"></div>
+              </div>
+              <canvas id="socRing1" class="soc-ring"></canvas>
+            </div>
+            <div class="soc-kpi">
+              <div class="soc-num">
+                <div class="label">Allowed Connections</div>
+                <div class="big" id="db_evAllow">119M</div>
+                <div class="delta" id="db_evAllowD"></div>
+              </div>
+              <canvas id="socRing2" class="soc-ring"></canvas>
+            </div>
+            <div class="soc-kpi">
+              <div class="soc-num">
+                <div class="label">Denied Connections</div>
+                <div class="big" id="db_evDeny">19035K</div>
+                <div class="delta" id="db_evDenyD"></div>
+              </div>
+              <canvas id="socRing3" class="soc-ring"></canvas>
+            </div>
+          </div>
+          <p class="soc-desc" id="db_socDesc"></p>
+        </div>
+
+        <!-- Row 3 -->
+        <div class="db-row3">
+          <!-- Email Threats -->
+          <div>
+            <div class="db-section-title">Blocked Email Threats</div>
+            <div class="email-threats">
+              <div class="et-title">Total Threats Detected - Emails</div>
+              <div class="et-total" id="db_etTotal">151010</div>
+              <div id="db_etRows"></div>
+            </div>
+            <p class="email-summary" id="db_etDesc"></p>
+          </div>
+
+          <!-- Phishing -->
+          <div>
+            <div class="db-section-title">Social Engineering – Phishing Results</div>
+            <div class="phishing-wrap">
+              <div class="phishing-top">
+                <div class="phishing-chart-wrap">
+                  <canvas id="phishingChart"></canvas>
+                </div>
+                <div class="phishing-big">
+                  <div class="p-pct" id="db_phishPct">7%</div>
+                  <div class="p-label">Our Employee on average are <strong id="db_phishPct2">7%</strong> likely to be phished</div>
+                </div>
+              </div>
+              <p class="phishing-summary" id="db_phishDesc"></p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+    </div><!-- /dashboard-wrap -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ══════════════ State ══════════════
+const dirs = { sla:'down', inc:'down', crit:'up' };
+const etDefaults = [
+  {name:'Inbound Rejection', val:'22841', dir:'down', color:'green'},
+  {name:'Spam Blocked', val:'1883', dir:'up', color:'red'},
+  {name:'Impersonation Attacks', val:'2864', dir:'down', color:'green'},
+  {name:'Malware Detected', val:'100', dir:'up', color:'red'},
+  {name:'Links Clicked', val:'0', dir:'neutral', color:'gray'},
+  {name:'Malicious Attachments', val:'0', dir:'neutral', color:'gray'},
+];
+const phishDefaults = [
+  {month:'Nov-25', reported:38, clicked:5, data:2, attach:0, qr:0, phishProne:5.0},
+  {month:'Dec-25', reported:30, clicked:4, data:1, attach:0, qr:0, phishProne:4.5},
+  {month:'Jan-26', reported:38, clicked:6, data:3, attach:0, qr:0, phishProne:6.0},
+];
+
+let phishingChartInstance = null;
+let socRingCharts = [];
+
+// ══════════════ Init dynamic form fields ══════════════
+function buildEtMetrics() {
+  const c = document.getElementById('etMetrics');
+  c.innerHTML = '';
+  etDefaults.forEach((m, i) => {
+    c.innerHTML += `
+    <div style="margin-bottom:6px;border:1px solid #2a3f55;border-radius:4px;padding:6px;">
+      <div style="font-size:10px;color:#7af;margin-bottom:4px;">${m.name}</div>
+      <div class="row3">
+        <div><label>Value</label><input type="text" id="et_val_${i}" value="${m.val}"></div>
+        <div><label>Direction</label>
+          <div class="dir-select" id="ds_et${i}">
+            <button onclick="setEtDir(${i},'down')" ${m.dir==='down'?'class="active"':''}>▼</button>
+            <button onclick="setEtDir(${i},'up')" ${m.dir==='up'?'class="active"':''}>▲</button>
+            <button onclick="setEtDir(${i},'neutral')" ${m.dir==='neutral'?'class="active"':''}>➡</button>
+          </div>
+        </div>
+        <div><label>Color</label>
+          <select id="et_color_${i}">
+            <option value="green" ${m.color==='green'?'selected':''}>Green</option>
+            <option value="red" ${m.color==='red'?'selected':''}>Red</option>
+            <option value="gray" ${m.color==='gray'?'selected':''}>Gray</option>
+          </select>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+
+function buildPhishMonths() {
+  const c = document.getElementById('phishMonths');
+  c.innerHTML = '';
+  phishDefaults.forEach((m, i) => {
+    c.innerHTML += `
+    <div class="month-block">
+      <h5>Month ${i+1}</h5>
+      <div class="row2">
+        <div><label>Month Label</label><input type="text" id="ph_month_${i}" value="${m.month}"></div>
+        <div><label>Phish-Prone %</label><input type="number" id="ph_pp_${i}" value="${m.phishProne}" step="0.1"></div>
+      </div>
+      <div class="row3">
+        <div><label>Reported</label><input type="number" id="ph_rep_${i}" value="${m.reported}"></div>
+        <div><label>Clicked</label><input type="number" id="ph_click_${i}" value="${m.clicked}"></div>
+        <div><label>Data Entered</label><input type="number" id="ph_data_${i}" value="${m.data}"></div>
+      </div>
+      <div class="row2">
+        <div><label>Attachments Opened</label><input type="number" id="ph_attach_${i}" value="${m.attach}"></div>
+        <div><label>QR Code</label><input type="number" id="ph_qr_${i}" value="${m.qr}"></div>
+      </div>
+    </div>`;
+  });
+}
+
+// ══════════════ Direction helpers ══════════════
+function setDir(key, val) {
+  dirs[key] = val;
+  const btns = document.querySelectorAll(`#ds_${key} button`);
+  btns.forEach(b => b.classList.remove('active'));
+  const map = {down:0,up:1,neutral:2};
+  btns[map[val]].classList.add('active');
+}
+
+const etDirs = {};
+etDefaults.forEach((m,i) => { etDirs[i] = m.dir; });
+function setEtDir(i, val) {
+  etDirs[i] = val;
+  const btns = document.querySelectorAll(`#ds_et${i} button`);
+  btns.forEach(b => b.classList.remove('active'));
+  const map = {down:0,up:1,neutral:2};
+  btns[map[val]].classList.add('active');
+}
+
+// ══════════════ Gauge Drawing ══════════════
+function drawGauge(pct) {
+  const canvas = document.getElementById('gaugeCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const cx = w/2, cy = h - 20, r = 90;
+
+  // Background arc zones
+  const zones = [
+    {from:Math.PI, to:Math.PI*1.33, color:'#2ecc71'},
+    {from:Math.PI*1.33, to:Math.PI*1.66, color:'#f39c12'},
+    {from:Math.PI*1.66, to:Math.PI*2, color:'#e74c3c'},
+  ];
+  zones.forEach(z => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, z.from, z.to);
+    ctx.lineWidth = 22;
+    ctx.strokeStyle = z.color;
+    ctx.stroke();
+  });
+
+  // Track bg
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, Math.PI*2);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#ddd';
+  ctx.stroke();
+
+  // Labels
+  ctx.font = '9px Arial';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.fillText('Low', cx - r + 10, cy + 14);
+  ctx.fillText('Medium', cx, cy - r - 8);
+  ctx.fillText('High', cx + r - 10, cy + 14);
+
+  // Needle
+  const angle = Math.PI + (pct/100) * Math.PI;
+  const nx = cx + (r-10) * Math.cos(angle);
+  const ny = cy + (r-10) * Math.sin(angle);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(nx, ny);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.stroke();
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+
+  // Percentage text
+  ctx.font = 'bold 20px Arial';
+  ctx.fillStyle = '#1a3a5c';
+  ctx.textAlign = 'center';
+  ctx.fillText(pct+'%', cx, cy - 18);
+}
+
+// ══════════════ SoC Ring Charts ══════════════
+function buildSocRings(allVal, allowVal) {
+  socRingCharts.forEach(c => c.destroy());
+  socRingCharts = [];
+
+  const parseNum = s => {
+    s = String(s).toUpperCase();
+    if(s.endsWith('M')) return parseFloat(s)*1e6;
+    if(s.endsWith('K')) return parseFloat(s)*1e3;
+    return parseFloat(s)||0;
+  };
+
+  const all = parseNum(allVal);
+  const allow = parseNum(allowVal);
+  const deny = all - allow > 0 ? all - allow : allow * 0.15;
+
+  const configs = [
+    {id:'socRing1', pct:100, color:'#27ae60'},
+    {id:'socRing2', pct: all>0 ? (allow/all)*100 : 70, color:'#27ae60'},
+    {id:'socRing3', pct: all>0 ? (deny/all)*100 : 15, color:'#e74c3c'},
+  ];
+
+  configs.forEach(c => {
+    const el = document.getElementById(c.id);
+    const inst = new Chart(el, {
+      type:'doughnut',
+      data:{
+        datasets:[{
+          data:[c.pct, 100-c.pct],
+          backgroundColor:[c.color,'#eee'],
+          borderWidth:0,
+        }]
+      },
+      options:{
+        cutout:'70%',
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        animation:{duration:400},
+      }
+    });
+    socRingCharts.push(inst);
+  });
+}
+
+// ══════════════ Phishing Chart ══════════════
+function buildPhishingChart() {
+  if(phishingChartInstance) { phishingChartInstance.destroy(); phishingChartInstance = null; }
+
+  const months = [], reported = [], clicked = [], dataEntered = [], attachOpen = [], qrCode = [], phishProne = [];
+  const indAvg = parseFloat(document.getElementById('f_indAvg').value)||2.5;
+
+  for(let i=0;i<3;i++) {
+    months.push(document.getElementById(`ph_month_${i}`)?.value || `Month ${i+1}`);
+    reported.push(parseInt(document.getElementById(`ph_rep_${i}`)?.value)||0);
+    clicked.push(parseInt(document.getElementById(`ph_click_${i}`)?.value)||0);
+    dataEntered.push(parseInt(document.getElementById(`ph_data_${i}`)?.value)||0);
+    attachOpen.push(parseInt(document.getElementById(`ph_attach_${i}`)?.value)||0);
+    qrCode.push(parseInt(document.getElementById(`ph_qr_${i}`)?.value)||0);
+    phishProne.push(parseFloat(document.getElementById(`ph_pp_${i}`)?.value)||0);
+  }
+
+  const ctx = document.getElementById('phishingChart').getContext('2d');
+  phishingChartInstance = new Chart(ctx, {
+    data:{
+      labels: months,
+      datasets:[
+        {type:'bar', label:'Reported', data:reported, backgroundColor:'#4CAF50', yAxisID:'y'},
+        {type:'bar', label:'Clicked', data:clicked, backgroundColor:'#e74c3c', yAxisID:'y'},
+        {type:'bar', label:'Data Entered', data:dataEntered, backgroundColor:'#3498db', yAxisID:'y'},
+        {type:'bar', label:'Attachments Opened', data:attachOpen, backgroundColor:'#aaa', yAxisID:'y'},
+        {type:'bar', label:'QR Code', data:qrCode, backgroundColor:'#f39c12', yAxisID:'y'},
+        {type:'line', label:'Phish-Prone %', data:phishProne, borderColor:'#1a3a5c', backgroundColor:'transparent', pointBackgroundColor:'#1a3a5c', yAxisID:'y2', tension:0.3},
+        {type:'line', label:'Industry Average', data:months.map(()=>indAvg), borderColor:'#aaa', borderDash:[4,4], backgroundColor:'transparent', yAxisID:'y2', tension:0},
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{
+          display:true,
+          position:'bottom',
+          labels:{font:{size:8},boxWidth:10,padding:6}
+        }
+      },
+      scales:{
+        y:{type:'linear',position:'left',beginAtZero:true,ticks:{font:{size:8}}},
+        y2:{type:'linear',position:'right',beginAtZero:true,max:10,ticks:{font:{size:8},callback:v=>v+'%'},grid:{drawOnChartArea:false}},
+      }
+    }
+  });
+}
+
+// ══════════════ Vulnerability Matrix Color ══════════════
+function cellClass(v) {
+  v = parseInt(v)||0;
+  if(v===0) return 'cell-green';
+  if(v<=2) return 'cell-yellow';
+  if(v<=5) return 'cell-orange';
+  return 'cell-red';
+}
+
+// ══════════════ Arrow helpers ══════════════
+function arrowChar(dir) {
+  return dir==='up'?'▲':dir==='down'?'▼':'➡';
+}
+function arrowColorClass(color, dir) {
+  if(color==='green') return dir==='up'?'green-up':'green-down';
+  if(color==='red') return dir==='up'?'red-up':'red-down';
+  return 'amber-up';
+}
+
+// ══════════════ Main Update ══════════════
+function updateDashboard() {
+  // Title / logo
+  document.getElementById('db_title').textContent = document.getElementById('f_companyName').value;
+  document.getElementById('db_logoText').textContent = document.getElementById('f_logoText').value;
+  document.getElementById('db_logoSub').textContent = document.getElementById('f_logoSub').value;
+
+  // Risk gauge
+  const riskPct = parseInt(document.getElementById('f_riskScore').value)||26;
+  drawGauge(riskPct);
+  const riskLevel = riskPct < 33 ? 'Low' : riskPct < 66 ? 'Medium' : 'High';
+  document.getElementById('db_gaugeLabel').innerHTML = `Risk Level: <strong>${riskLevel}</strong>`;
+  document.getElementById('db_riskDesc').textContent = document.getElementById('f_riskDesc').value;
+
+  // Vuln matrix
+  const rows = ['>120 days','91-120 days','60-90 days','30-60 days','<30 days'];
+  let tbody = '';
+  rows.forEach((row,ri) => {
+    tbody += `<tr><td class="row-label">${row}</td>`;
+    for(let ci=0;ci<4;ci++) {
+      const v = document.getElementById(`v${ri}_${ci}`)?.value||'0';
+      tbody += `<td class="${cellClass(v)}">${v}</td>`;
+    }
+    tbody += '</tr>';
+  });
+  document.getElementById('vulnBody').innerHTML = tbody;
+  document.getElementById('db_vulnDesc').textContent = document.getElementById('f_vulnDesc').value;
+
+  // Helpdesk
+  document.getElementById('db_hdPeriod').textContent = document.getElementById('f_hdPeriod').value;
+  const slaColor = document.getElementById('f_slaColor').value;
+  const slaDir = dirs.sla;
+  document.getElementById('db_slaNum').textContent = document.getElementById('f_sla').value + '%';
+  document.getElementById('db_slaNum').style.color = slaColor==='green'?'#27ae60':slaColor==='red'?'#e74c3c':'#f39c12';
+  document.getElementById('db_slaLabel').textContent = document.getElementById('f_slaLabel').value;
+
+  const incColor = document.getElementById('f_incColor').value;
+  const incDir = dirs.inc;
+  const incArr = document.getElementById('db_incArr');
+  incArr.textContent = arrowChar(incDir);
+  incArr.className = 'arrow-icon ' + arrowColorClass(incColor, incDir);
+  document.getElementById('db_incNum').textContent = document.getElementById('f_inc').value + '%';
+  document.getElementById('db_incLabel').textContent = document.getElementById('f_incLabel').value;
+
+  const critColor = document.getElementById('f_critColor').value;
+  const critDir = dirs.crit;
+  const critArr = document.getElementById('db_critArr');
+  critArr.textContent = arrowChar(critDir);
+  critArr.className = 'arrow-icon ' + arrowColorClass(critColor, critDir);
+  document.getElementById('db_critNum').textContent = document.getElementById('f_crit').value + '%';
+  document.getElementById('db_critLabel').textContent = document.getElementById('f_critLabel').value;
+
+  document.getElementById('db_fn1').textContent = '*' + document.getElementById('f_fn1').value;
+  document.getElementById('db_fn2').textContent = '**' + document.getElementById('f_fn2').value;
+  document.getElementById('db_fn3').textContent = '***' + document.getElementById('f_fn3').value;
+
+  // SoC
+  const allVal = document.getElementById('f_evAll').value;
+  const allowVal = document.getElementById('f_evAllow').value;
+  document.getElementById('db_evAll').textContent = allVal;
+  document.getElementById('db_evAllD').textContent = document.getElementById('f_evAllD').value;
+  document.getElementById('db_evAllow').textContent = allowVal;
+  document.getElementById('db_evAllowD').textContent = document.getElementById('f_evAllowD').value;
+  document.getElementById('db_evDeny').textContent = document.getElementById('f_evDeny').value;
+  document.getElementById('db_evDenyD').textContent = document.getElementById('f_evDenyD').value;
+  document.getElementById('db_socDesc').textContent = document.getElementById('f_socDesc').value;
+  buildSocRings(allVal, allowVal);
+
+  // Email threats
+  document.getElementById('db_etTotal').textContent = document.getElementById('f_etTotal').value;
+  let etHtml = '';
+  etDefaults.forEach((m,i) => {
+    const v = document.getElementById(`et_val_${i}`)?.value || m.val;
+    const d = etDirs[i] || m.dir;
+    const c = document.getElementById(`et_color_${i}`)?.value || m.color;
+    const arrChar = d==='up'?'▲':d==='down'?'▼':'➡';
+    etHtml += `<div class="et-row">
+      <span class="et-name">${m.name}</span>
+      <span><span class="et-val ${c}">${v}</span><span class="et-arr ${c}">${arrChar}</span></span>
+    </div>`;
+  });
+  document.getElementById('db_etRows').innerHTML = etHtml;
+  document.getElementById('db_etDesc').textContent = document.getElementById('f_etDesc').value;
+
+  // Phishing
+  const phishPct = document.getElementById('f_phishPct').value;
+  document.getElementById('db_phishPct').textContent = phishPct + '%';
+  document.getElementById('db_phishPct2').textContent = phishPct + '%';
+  document.getElementById('db_phishDesc').textContent = document.getElementById('f_phishDesc').value;
+  buildPhishingChart();
+}
+
+// ══════════════ Sidebar toggle ══════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  body.style.display = body.style.display === 'none' ? 'flex' : 'none';
+  header.querySelector('span').textContent = body.style.display === 'none' ? '▸' : '▾';
+}
+
+// ══════════════ PNG Export ══════════════
+async function exportPNG() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+  try {
+    const el = document.getElementById('dashboard');
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const link = document.createElement('a');
+    const title = document.getElementById('f_companyName').value || 'dashboard';
+    link.download = title.replace(/\s+/g,'_') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+  }
+  overlay.classList.remove('show');
+}
+
+// ══════════════ PPTX Export ══════════════
+async function exportPPTX() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+  try {
+    const el = document.getElementById('dashboard');
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const imgData = canvas.toDataURL('image/png');
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE'; // 13.33" x 7.5"
+
+    const slide = pptx.addSlide();
+    slide.background = { color: 'FFFFFF' };
+    slide.addImage({
+      data: imgData,
+      x: 0,
+      y: 0,
+      w: 13.33,
+      h: 7.5,
+      sizing: { type: 'contain', x: 0, y: 0, w: 13.33, h: 7.5 },
+    });
+
+    const title = document.getElementById('f_companyName').value || 'dashboard';
+    await pptx.writeFile({ fileName: title.replace(/\s+/g,'_') + '.pptx' });
+  } catch(e) {
+    alert('PowerPoint export failed: ' + e.message);
+  }
+  overlay.classList.remove('show');
+}
+
+// ══════════════ Boot ══════════════
+buildEtMetrics();
+buildPhishMonths();
+updateDashboard();
+</script>
+</body>
+</html>
