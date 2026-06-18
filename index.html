@@ -101,7 +101,7 @@
   .soc-num .big{font-size:28px;font-weight:900;color:#1a3a5c;}
   .soc-num .delta{font-size:9px;color:#27ae60;margin-top:2px;}
   .soc-num .label{font-size:10px;color:#555;}
-  .soc-ring{width:60px;height:60px;}
+  .soc-ring{width:60px !important;height:60px !important;max-width:60px;max-height:60px;}
   .soc-desc{font-size:9.5px;color:#444;line-height:1.6;}
 
   /* Row 3 */
@@ -411,7 +411,7 @@
                 <div class="big" id="db_evAll">168M</div>
                 <div class="delta" id="db_evAllD"></div>
               </div>
-              <canvas id="socRing1" class="soc-ring"></canvas>
+              <canvas id="socRing1" class="soc-ring" width="60" height="60"></canvas>
             </div>
             <div class="soc-kpi">
               <div class="soc-num">
@@ -419,7 +419,7 @@
                 <div class="big" id="db_evAllow">119M</div>
                 <div class="delta" id="db_evAllowD"></div>
               </div>
-              <canvas id="socRing2" class="soc-ring"></canvas>
+              <canvas id="socRing2" class="soc-ring" width="60" height="60"></canvas>
             </div>
             <div class="soc-kpi">
               <div class="soc-num">
@@ -427,7 +427,7 @@
                 <div class="big" id="db_evDeny">19035K</div>
                 <div class="delta" id="db_evDenyD"></div>
               </div>
-              <canvas id="socRing3" class="soc-ring"></canvas>
+              <canvas id="socRing3" class="soc-ring" width="60" height="60"></canvas>
             </div>
           </div>
           <p class="soc-desc" id="db_socDesc"></p>
@@ -659,6 +659,7 @@ function buildSocRings(allVal, allowVal) {
         cutout:'70%',
         plugins:{legend:{display:false},tooltip:{enabled:false}},
         animation:{duration:400},
+        responsive:false,
       }
     });
     socRingCharts.push(inst);
